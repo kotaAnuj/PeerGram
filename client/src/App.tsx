@@ -49,7 +49,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-lightgray">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Loading PeerGram...</h2>
+          <h2 className="text-xl font-semibold mb-4">Loading P2P Social Network...</h2>
           <div className="animate-pulse mt-4 flex space-x-4 justify-center">
             <div className="h-3 w-3 bg-primary rounded-full"></div>
             <div className="h-3 w-3 bg-primary rounded-full"></div>
