@@ -1,5 +1,10 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function MobileNavbar() {
   const [location] = useLocation();
@@ -31,15 +36,39 @@ export default function MobileNavbar() {
         </a>
       </Link>
       
-      <Link href={`/profile/${user?.id}`}>
-        <a className={`flex flex-col items-center justify-center flex-1 ${location === `/profile/${user?.id}` ? 'text-primary' : ''}`}>
-          <img 
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.displayName}&background=random`} 
-            className="w-6 h-6 rounded-full" 
-            alt="Profile" 
-          />
-        </a>
-      </Link>
+      <Popover>
+        <PopoverTrigger className="flex-1 bg-transparent border-0">
+          <div className={`flex flex-col items-center justify-center ${location === `/profile/${user?.id}` ? 'text-primary' : ''}`}>
+            <img 
+              src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.displayName}&background=random`} 
+              className="w-6 h-6 rounded-full" 
+              alt="Profile" 
+            />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-0">
+          <div className="grid gap-1">
+            <Link href={`/profile/${user?.id}`}>
+              <a className="flex items-center p-2 hover:bg-muted rounded-md">
+                <i className="fas fa-user mr-2"></i>
+                <span>My Profile</span>
+              </a>
+            </Link>
+            <Link href="/founder">
+              <a className="flex items-center p-2 hover:bg-muted rounded-md">
+                <i className="fas fa-info-circle mr-2"></i>
+                <span>About Founder</span>
+              </a>
+            </Link>
+            <Link href="/network">
+              <a className="flex items-center p-2 hover:bg-muted rounded-md">
+                <i className="fas fa-network-wired mr-2"></i>
+                <span>My Network</span>
+              </a>
+            </Link>
+          </div>
+        </PopoverContent>
+      </Popover>
     </nav>
   );
 }

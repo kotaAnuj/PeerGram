@@ -15,6 +15,7 @@ import Profile from "@/pages/Profile";
 import Explore from "@/pages/Explore";
 import Network from "@/pages/Network";
 import CreatePost from "@/pages/CreatePost";
+import Founder from "@/pages/Founder";
 import NotFound from "@/pages/not-found";
 
 // Layouts and components
@@ -84,6 +85,7 @@ function App() {
             <Route path="/explore" component={Explore} />
             <Route path="/network" component={Network} />
             <Route path="/create" component={CreatePost} />
+            <Route path="/founder" component={Founder} />
             <Route component={NotFound} />
           </Switch>
         </div>

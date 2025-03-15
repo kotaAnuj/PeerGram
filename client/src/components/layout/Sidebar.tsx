@@ -73,6 +73,13 @@ export default function Sidebar({ onShowFriendRequests }: SidebarProps) {
             <span>My Network</span>
           </a>
         </Link>
+        
+        <Link href="/founder">
+          <a className={`flex items-center p-3 rounded-md text-sm font-medium ${location === '/founder' ? 'text-primary bg-blue-50' : 'hover:bg-lightgray'}`}>
+            <i className="fas fa-info-circle w-6"></i>
+            <span>About Founder</span>
+          </a>
+        </Link>
       </nav>
       
       <div className="border-t border-border pt-4">
