@@ -27,8 +27,27 @@ export const useAuth = () => {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
-      } else if (response.status === 404) {
-        setUser(null);
+      } else if (response.status === 404 && firebaseUser) {
+        // Create new user if not found
+        const createResponse = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: firebaseUser.email?.split('@')[0] || `user${Date.now()}`,
+            displayName: firebaseUser.displayName || 'Anonymous',
+            avatar: firebaseUser.photoURL || undefined,
+            firebaseUid: firebaseUser.uid
+          })
+        });
+        
+        if (createResponse.ok) {
+          const newUser = await createResponse.json();
+          setUser(newUser);
+        } else {
+          throw new Error('Failed to create user profile');
+        }
       } else {
         throw new Error('Failed to fetch user profile');
       }
