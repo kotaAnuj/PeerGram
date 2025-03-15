@@ -15,7 +15,7 @@ export default function Sidebar({ onShowFriendRequests }: SidebarProps) {
   return (
     <aside className="hidden md:flex md:flex-col w-64 fixed h-full border-r border-border bg-white p-4">
       <div className="mb-8 px-2">
-        <h1 className="text-2xl font-bold">PeerGram</h1>
+        <h1 className="text-2xl font-bold">P2P Social</h1>
         <div className="text-xs text-gray-500 flex items-center">
           <span className="inline-block w-2 h-2 rounded-full bg-success mr-1"></span>
           Connected to {networkStats.totalPeers} peers

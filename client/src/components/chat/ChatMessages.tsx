@@ -88,21 +88,48 @@ export default function ChatMessages({ recipientId }: ChatMessagesProps) {
         msg => msg.senderId === recipientId && !msg.isRead
       );
       
+      if (unreadMessages.length === 0) return;
+      
+      // Find the peer connection for the recipient
+      const recipientPeer = initialized && sendToPeer ? 
+        (window as any).webrtcManager?.connections?.find(conn => conn.userId === recipientId) : null;
+      
       for (const msg of unreadMessages) {
         try {
-          await fetch(`/api/messages/${msg.id}`, {
+          // Update message read status on the server
+          const response = await fetch(`/api/messages/${msg.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isRead: true }),
+            body: JSON.stringify({ isRead: true, deliveryStatus: 'read' }),
           });
+          
+          if (response.ok) {
+            // Send read receipt to peer if connected
+            if (recipientPeer && recipientPeer.peerId) {
+              sendToPeer(recipientPeer.peerId, {
+                type: 'MESSAGE_READ',
+                messageId: msg.id,
+                readerId: user.id,
+                timestamp: new Date(),
+              });
+            }
+          }
         } catch (error) {
           console.error('Error marking message as read:', error);
         }
       }
+      
+      // Refresh messages list to show updated read status
+      refetch();
     };
 
-    markMessagesAsRead();
-  }, [messages, recipientId, user]);
+    // Add a small delay to ensure the message is visible before marking as read
+    const timer = setTimeout(() => {
+      markMessagesAsRead();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [messages, recipientId, user, initialized, sendToPeer, refetch]);
 
   if (isLoading) {
     return (

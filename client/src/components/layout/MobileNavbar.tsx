@@ -5,10 +5,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 
 export default function MobileNavbar() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <nav className="navbar-mobile py-2">
@@ -47,25 +48,50 @@ export default function MobileNavbar() {
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-56 p-0">
-          <div className="grid gap-1">
-            <Link href={`/profile/${user?.id}`}>
-              <a className="flex items-center p-2 hover:bg-muted rounded-md">
-                <i className="fas fa-user mr-2"></i>
-                <span>My Profile</span>
-              </a>
-            </Link>
-            <Link href="/founder">
-              <a className="flex items-center p-2 hover:bg-muted rounded-md">
-                <i className="fas fa-info-circle mr-2"></i>
-                <span>About Founder</span>
-              </a>
-            </Link>
-            <Link href="/network">
-              <a className="flex items-center p-2 hover:bg-muted rounded-md">
-                <i className="fas fa-network-wired mr-2"></i>
-                <span>My Network</span>
-              </a>
-            </Link>
+          <div className="py-2">
+            <div className="px-3 py-2">
+              <div className="font-medium">{user?.displayName}</div>
+              <div className="text-xs text-muted-foreground">@{user?.username}</div>
+            </div>
+            
+            <Separator className="my-1" />
+            
+            <div className="grid gap-1 p-1">
+              <Link href={`/profile/${user?.id}`}>
+                <a className="flex items-center p-2 hover:bg-muted rounded-md">
+                  <i className="fas fa-user mr-2"></i>
+                  <span>My Profile</span>
+                </a>
+              </Link>
+              <Link href="/explore">
+                <a className="flex items-center p-2 hover:bg-muted rounded-md">
+                  <i className="fas fa-compass mr-2"></i>
+                  <span>Explore</span>
+                </a>
+              </Link>
+              <Link href="/network">
+                <a className="flex items-center p-2 hover:bg-muted rounded-md">
+                  <i className="fas fa-network-wired mr-2"></i>
+                  <span>My Network</span>
+                </a>
+              </Link>
+              <Link href="/founder">
+                <a className="flex items-center p-2 hover:bg-muted rounded-md">
+                  <i className="fas fa-info-circle mr-2"></i>
+                  <span>About Founder</span>
+                </a>
+              </Link>
+              
+              <Separator className="my-1" />
+              
+              <button 
+                onClick={logout}
+                className="flex items-center p-2 hover:bg-red-50 text-red-600 rounded-md w-full text-left"
+              >
+                <i className="fas fa-sign-out-alt mr-2"></i>
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
