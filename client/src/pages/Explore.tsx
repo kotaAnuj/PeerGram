@@ -22,11 +22,20 @@ type User = {
   avatar?: string;
 };
 
+type Connection = {
+  id: number;
+  userId: number;
+  connectedUserId: number;
+  status: string;
+  strength?: string;
+  lastConnectionTime?: Date;
+};
+
 export default function Explore() {
   const { user } = useAuth();
   const { initialized, connections } = useP2P();
   const [explorePosts, setExplorePosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'p2p'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'p2p' | 'friends'>('all');
 
   // Fetch all posts (in a real app, this would be paginated and filtered)
   const { data: posts, isLoading, error, refetch } = useQuery({
@@ -39,34 +48,58 @@ export default function Explore() {
     queryKey: ['/api/users'],
     enabled: !!user,
   });
+  
+  // Fetch user connections for friends tab
+  const { data: connectionsData } = useQuery({
+    queryKey: [`/api/users/${user?.id}/connections`],
+    enabled: !!user,
+  });
 
   // Filter and process posts for explore page
   useEffect(() => {
     if (!posts || !users || !user) return;
     
+    // Ensure data is treated as arrays
+    const postsArray = Array.isArray(posts) ? posts : [];
+    const usersArray = Array.isArray(users) ? users : [];
+    const connectionsArray = Array.isArray(connectionsData) ? connectionsData : [];
+    
     // Add user data to posts
-    const postsWithUsers = posts.map((post: Post) => {
-      const postUser = users.find((u: User) => u.id === post.userId);
+    const postsWithUsers = postsArray.map((post: Post) => {
+      const postUser = usersArray.find((u: User) => u.id === post.userId);
       return { ...post, user: postUser };
     });
     
     // Filter out current user's posts
     const otherUsersPosts = postsWithUsers.filter((post: Post) => post.userId !== user.id);
     
-    // Get connected user IDs for P2P tab filtering
-    const connectedUserIds = connections.map(conn => conn.userId);
+    // Get P2P connected user IDs
+    const p2pConnectedUserIds = connections.map(conn => conn.userId);
+    
+    // Get accepted friend connections user IDs
+    const friendUserIds = connectionsArray
+      .filter((conn: Connection) => conn.status === 'accepted')
+      .map((conn: Connection) => 
+        conn.userId === user.id ? conn.connectedUserId : conn.userId
+      );
     
     if (activeTab === 'p2p') {
       // Filter to only show posts from P2P connected users
       const p2pPosts = otherUsersPosts.filter((post: Post) => 
-        connectedUserIds.includes(post.userId)
+        p2pConnectedUserIds.includes(post.userId)
       );
       setExplorePosts(p2pPosts);
+    } else if (activeTab === 'friends') {
+      // Filter to only show posts from accepted friend connections
+      const friendPosts = otherUsersPosts.filter((post: Post) => 
+        friendUserIds.includes(post.userId)
+      );
+      setExplorePosts(friendPosts);
     } else {
       // Show all posts for the 'all' tab
       setExplorePosts(otherUsersPosts);
     }
-  }, [posts, users, user, connections, activeTab]);
+  }, [posts, users, user, connections, connectionsData, activeTab]);
 
   if (!user) {
     return null;
@@ -85,6 +118,12 @@ export default function Explore() {
             onClick={() => setActiveTab('all')}
           >
             All Posts
+          </button>
+          <button 
+            className={`flex-1 py-2 text-sm font-medium ${activeTab === 'friends' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('friends')}
+          >
+            Friends
           </button>
           <button 
             className={`flex-1 py-2 text-sm font-medium ${activeTab === 'p2p' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}
@@ -129,10 +168,24 @@ export default function Explore() {
           ))
         ) : (
           <div className="p-8 text-center text-gray-500">
-            <i className="far fa-compass text-4xl mb-3"></i>
-            <p>{activeTab === 'p2p' ? 'No posts from your P2P connections' : 'No posts to explore yet'}</p>
-            {activeTab === 'p2p' && connections.length === 0 && (
-              <p className="text-sm mt-1">Connect with others to see their posts</p>
+            <i className={`far ${activeTab === 'friends' ? 'fa-user-friends' : activeTab === 'p2p' ? 'fa-network-wired' : 'fa-compass'} text-4xl mb-3`}></i>
+            
+            {activeTab === 'friends' ? (
+              <>
+                <p>No posts from your friends yet</p>
+                {(!connectionsData || (Array.isArray(connectionsData) && connectionsData.filter((c: Connection) => c.status === 'accepted').length === 0)) && (
+                  <p className="text-sm mt-1">Connect with others to see their posts here</p>
+                )}
+              </>
+            ) : activeTab === 'p2p' ? (
+              <>
+                <p>No posts from your P2P connections</p>
+                {connections.length === 0 && (
+                  <p className="text-sm mt-1">Connect with others to see their posts</p>
+                )}
+              </>
+            ) : (
+              <p>No posts to explore yet</p>
             )}
           </div>
         )}
