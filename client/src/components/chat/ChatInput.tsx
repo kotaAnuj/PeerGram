@@ -5,6 +5,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { detectLinks, generateId } from '@/lib/utils';
 import { localDB, DataTypes } from '@/lib/storage';
+import MediaSearch from './MediaSearch';
 
 type ChatInputProps = {
   recipientId: number;
@@ -95,6 +96,81 @@ export default function ChatInput({ recipientId, onMessageSent }: ChatInputProps
 
   const handleAttach = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleMediaSelect = async (content: string, type: 'emoji' | 'gif' | 'image') => {
+    if (!user) return;
+
+    try {
+      // For emoji, just append to the message text
+      if (type === 'emoji') {
+        setMessage(prev => prev + content);
+        inputRef.current?.focus();
+        return;
+      }
+
+      setIsUploading(true);
+      
+      // For GIF or image URLs
+      const messageText = type === 'gif' ? '' : `Shared an image`;
+      const mediaType = type === 'gif' ? 'image/gif' : 'image/jpeg';
+      
+      // Create appropriate embed data based on type
+      const embedData = {
+        type: type,
+        url: content,
+        mediaType
+      };
+      
+      // Send message with media
+      const response = await apiRequest('POST', '/api/messages', {
+        senderId: user.id,
+        receiverId: recipientId,
+        content: messageText,
+        embedData,
+        isRead: false,
+        deliveryStatus: 'sent'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to send ${type}`);
+      }
+      
+      const messageData = await response.json();
+      
+      // Also send via P2P if connected
+      if (initialized && recipientConnection) {
+        sendToPeer(recipientConnection.peerId, {
+          type: 'MESSAGE',
+          messageId: messageData.id,
+          senderId: user.id,
+          receiverId: recipientId,
+          content: messageText,
+          embedData,
+          timestamp: new Date(),
+        });
+      }
+      
+      // Callback after sending
+      if (onMessageSent) {
+        onMessageSent();
+      }
+      
+      toast({
+        description: `${type.charAt(0).toUpperCase() + type.slice(1)} sent successfully`,
+      });
+    } catch (error) {
+      console.error(`Error sending ${type}:`, error);
+      toast({
+        title: 'Error',
+        description: `Failed to send ${type}. Please try again.`,
+        variant: 'destructive',
+      });
+    } finally {
+      if (type !== 'emoji') {
+        setIsUploading(false);
+      }
+    }
   };
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -243,15 +319,8 @@ export default function ChatInput({ recipientId, onMessageSent }: ChatInputProps
             />
             
             <div className="flex items-center gap-1 pr-1">
-              {/* Emoji button */}
-              <button 
-                type="button" 
-                className="p-2 rounded-full text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </button>
+              {/* Media search button */}
+              <MediaSearch onSelect={handleMediaSelect} />
               
               {/* Send button */}
               <button 

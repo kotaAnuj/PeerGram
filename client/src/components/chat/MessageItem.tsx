@@ -27,6 +27,8 @@ export default function MessageItem({ message, isSender, recipientId }: MessageI
   const [senderInfo, setSenderInfo] = useState<any>(null);
   const [links, setLinks] = useState<string[]>([]);
   const [fileData, setFileData] = useState<any>(null);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
   
   useEffect(() => {
     // Detect links in message content
@@ -66,7 +68,22 @@ export default function MessageItem({ message, isSender, recipientId }: MessageI
     
     fetchSenderInfo();
     fetchFileData();
+    
+    // Reset media states when message changes
+    setMediaLoaded(false);
+    setMediaError(false);
   }, [message, isSender, recipientId]);
+
+  // Handle media load events
+  const handleMediaLoad = () => {
+    setMediaLoaded(true);
+    setMediaError(false);
+  };
+
+  const handleMediaError = () => {
+    setMediaLoaded(true);
+    setMediaError(true);
+  };
 
   // Display a skeleton while loading sender info
   if (!isSender && !senderInfo) {
@@ -84,6 +101,11 @@ export default function MessageItem({ message, isSender, recipientId }: MessageI
     );
   }
 
+  // Determine if the message bubble should have padding
+  // Remove padding for media-only messages
+  const isMediaOnly = (message.embedData?.type === 'gif' || message.embedData?.type === 'image') && !message.content;
+  const showPadding = !isMediaOnly;
+
   return (
     <div className={`flex ${isSender ? 'justify-end' : ''} my-2 group`}>
       {!isSender && (
@@ -99,17 +121,31 @@ export default function MessageItem({ message, isSender, recipientId }: MessageI
           isSender 
             ? 'bg-primary text-white rounded-xl rounded-br-none shadow-sm' 
             : 'bg-white dark:bg-zinc-800 shadow-sm rounded-xl rounded-bl-none'
-        } p-3 transition-all relative`}>
+        } ${showPadding ? 'p-3' : 'overflow-hidden'} transition-all relative`}>
           {/* Message content */}
-          <p className="text-sm break-words">{message.content}</p>
+          {message.content && (
+            <p className="text-sm break-words">{message.content}</p>
+          )}
           
           {/* File attachment */}
           {message.embedData?.type === 'file' && (
-            <div className="mt-2 border rounded-lg overflow-hidden">
+            <div className={`${message.content ? 'mt-2' : ''} border rounded-lg overflow-hidden`}>
               {fileData && message.embedData.mimeType?.startsWith('image/') ? (
-                <img src={fileData} alt="Shared file" className="max-w-full rounded-lg" />
+                <img 
+                  src={fileData} 
+                  alt="Shared file" 
+                  className="max-w-full rounded-lg" 
+                  onLoad={handleMediaLoad}
+                  onError={handleMediaError}
+                />
               ) : fileData && message.embedData.mimeType?.startsWith('video/') ? (
-                <video src={fileData} controls className="max-w-full rounded-lg"></video>
+                <video 
+                  src={fileData} 
+                  controls 
+                  className="max-w-full rounded-lg"
+                  onLoadedData={handleMediaLoad}
+                  onError={handleMediaError}
+                ></video>
               ) : (
                 <div className="p-3 flex items-center dark:bg-zinc-700/50 bg-zinc-50">
                   <div className="bg-primary/10 rounded-full p-2 mr-3 text-primary">
@@ -128,9 +164,73 @@ export default function MessageItem({ message, isSender, recipientId }: MessageI
             </div>
           )}
           
+          {/* GIF */}
+          {message.embedData?.type === 'gif' && (
+            <div className={`${message.content ? 'mt-2' : ''} overflow-hidden ${isMediaOnly ? 'rounded-xl' : 'rounded-lg'}`}>
+              {!mediaLoaded && (
+                <div className="bg-zinc-100 dark:bg-zinc-700 animate-pulse h-40 w-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-zinc-300 dark:text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+              )}
+              <img 
+                src={message.embedData.url} 
+                alt="GIF" 
+                className={`max-w-full w-full ${mediaLoaded ? 'block' : 'hidden'}`}
+                onLoad={handleMediaLoad}
+                onError={handleMediaError}
+              />
+              {mediaError && (
+                <div className="bg-zinc-100 dark:bg-zinc-700 p-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                  <svg className="w-6 h-6 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  Failed to load GIF
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Image */}
+          {message.embedData?.type === 'image' && (
+            <div className={`${message.content ? 'mt-2' : ''} overflow-hidden ${isMediaOnly ? 'rounded-xl' : 'rounded-lg'}`}>
+              {!mediaLoaded && (
+                <div className="bg-zinc-100 dark:bg-zinc-700 animate-pulse h-40 w-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-zinc-300 dark:text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+              )}
+              <img 
+                src={message.embedData.url} 
+                alt="Image" 
+                className={`max-w-full w-full ${mediaLoaded ? 'block' : 'hidden'}`}
+                onLoad={handleMediaLoad}
+                onError={handleMediaError}
+              />
+              {mediaError && (
+                <div className="bg-zinc-100 dark:bg-zinc-700 p-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                  <svg className="w-6 h-6 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  Failed to load image
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Link embeds */}
           {links.map((link, index) => (
-            <div className="mt-2" key={index}>
+            <div className={`${message.content ? 'mt-2' : ''}`} key={index}>
               <LinkEmbed url={link} />
             </div>
           ))}
