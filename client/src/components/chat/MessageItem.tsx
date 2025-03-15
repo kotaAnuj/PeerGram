@@ -249,13 +249,35 @@ export default function MessageItem({ message, isSender, recipientId }: MessageI
           {isSender && (
             <span className="ml-1 flex items-center">
               {message.deliveryStatus === 'read' ? (
-                <svg className="w-3 h-3 text-primary ml-1" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
+                <span className="flex items-center" title="Read">
+                  <svg className="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 7l-8.5 8.5-4-4L4 13l5.5 5.5L20 9l-2-2z" />
+                  </svg>
+                  <svg className="w-3 h-3 text-primary -ml-1" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 7l-8.5 8.5-4-4L4 13l5.5 5.5L20 9l-2-2z" />
+                  </svg>
+                </span>
+              ) : message.deliveryStatus === 'delivered' ? (
+                <span title="Delivered">
+                  <svg className="w-3 h-3 text-zinc-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 7l-8.5 8.5-4-4L4 13l5.5 5.5L20 9l-2-2z" />
+                  </svg>
+                </span>
+              ) : message.isRead ? (
+                <span className="flex items-center" title="Read">
+                  <svg className="w-3 h-3 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 7l-8.5 8.5-4-4L4 13l5.5 5.5L20 9l-2-2z" />
+                  </svg>
+                  <svg className="w-3 h-3 text-primary -ml-1" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 7l-8.5 8.5-4-4L4 13l5.5 5.5L20 9l-2-2z" />
+                  </svg>
+                </span>
               ) : (
-                <svg className="w-3 h-3 text-zinc-400 ml-1" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
+                <span title="Sent">
+                  <svg className="w-3 h-3 text-zinc-400 ml-1" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                  </svg>
+                </span>
               )}
             </span>
           )}

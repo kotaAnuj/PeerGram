@@ -18,7 +18,7 @@ export default function Founder() {
           <div className="flex flex-col md:flex-row gap-6 items-center">
             <div className="w-full md:w-1/3 flex justify-center">
               <img 
-                src="https://media.licdn.com/dms/image/v2/D5603AQHLezRqrNSGYw/profile-displayphoto-shrink_800_800/B56ZWbooPwGoAc-/0/1742072874463?e=1747267200&v=beta&t=fZzqeIJOb6vO6RtrvuLWTsR2BY56Qsfqs5r8EKargdU" 
+                src="/founder-new.jpg" 
                 alt="Kota Anuj Kumar" 
                 className="rounded-lg shadow-md max-w-[250px] w-full h-auto"
               />
@@ -26,16 +26,17 @@ export default function Founder() {
             <div className="w-full md:w-2/3 space-y-4">
               <h2 className="text-xl font-bold">Kota Anuj Kumar</h2>
               <p className="text-sm text-muted-foreground">Tech Enthusiast & AI Engineer</p>
-              <p className="text-sm font-medium">Built this P2P Social Network in just 3 days - March 16, 2025</p>
+              <p className="text-sm font-medium">Built this P2P Social Network in just 3 days - March 2025</p>
               
               <p className="mt-4">
                 I'm passionate about building decentralized systems that give power back to users. 
-                This platform is a true peer-to-peer social network that doesn't rely on central servers 
-                to store your data - everything is distributed across the network.
+                This platform is a true peer-to-peer social network that doesn't rely on central 
+                servers to store your data - everything is distributed across the network using 
+                cutting-edge WebRTC technology.
               </p>
               
               <p>
-                As an AI engineer and tech enthusiast, I believe the future of social media should be:
+                As a software engineer and tech enthusiast, I believe the future of social media should be:
               </p>
               
               <ul className="list-disc pl-5 space-y-1">
