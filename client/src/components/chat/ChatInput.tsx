@@ -19,6 +19,7 @@ export default function ChatInput({ recipientId, onMessageSent }: ChatInputProps
   const { initialized, connections, peerId, sendToPeer } = useP2P();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Find recipient connection if available
   const recipientConnection = connections.find(conn => conn.userId === recipientId);
@@ -201,55 +202,93 @@ export default function ChatInput({ recipientId, onMessageSent }: ChatInputProps
     }
   };
 
+  const focusInput = () => {
+    inputRef.current?.focus();
+  };
+
   return (
-    <div className="border-t border-border p-3">
-      <form onSubmit={handleSubmit}>
-        <div className="flex items-center bg-gray-100 rounded-full px-4 py-2">
-          <button type="button" className="mr-2 text-gray-500">
-            <i className="far fa-smile"></i>
-          </button>
-          <input 
-            type="text" 
-            placeholder="Message..." 
-            className="bg-transparent flex-1 outline-none text-sm"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={isUploading}
-          />
-          <button 
-            type="submit" 
-            className="ml-2 text-primary font-semibold text-sm"
-            disabled={!message.trim() || isUploading}
-          >
-            Send
-          </button>
-        </div>
-      </form>
-      
-      <div className="flex justify-between mt-2 px-1 text-xs text-gray-500">
-        <span className="flex items-center">
-          <i className={`fas fa-circle text-${recipientConnection ? 'success' : 'gray-400'} mr-1 text-[8px]`}></i>
-          {recipientConnection ? 'P2P Direct Connection' : 'Server Connection'}
-        </span>
+    <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800">
+      <div className="flex items-center gap-2">
+        {/* Attachment button */}
         <button 
-          className="flex items-center"
+          type="button" 
+          className="p-2 rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           onClick={handleAttach}
           disabled={isUploading}
         >
           {isUploading ? (
-            <><i className="fas fa-spinner fa-spin mr-1"></i> Uploading...</>
+            <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
           ) : (
-            <><i className="fas fa-paperclip mr-1"></i> Attach</>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
           )}
         </button>
+
+        {/* Message form */}
+        <form onSubmit={handleSubmit} className="flex-1 flex">
+          <div className="flex items-center w-full bg-zinc-100 dark:bg-zinc-800 rounded-full">
+            <input 
+              ref={inputRef}
+              type="text" 
+              placeholder="Message..." 
+              className="bg-transparent flex-1 outline-none text-sm px-4 py-2 min-w-0"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={isUploading}
+            />
+            
+            <div className="flex items-center gap-1 pr-1">
+              {/* Emoji button */}
+              <button 
+                type="button" 
+                className="p-2 rounded-full text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              
+              {/* Send button */}
+              <button 
+                type="submit" 
+                className={`p-2 rounded-full ${message.trim() ? 'text-primary hover:bg-primary/10' : 'text-zinc-400'}`}
+                disabled={!message.trim() || isUploading}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {/* Hidden file input */}
         <input 
           type="file" 
           ref={fileInputRef} 
           className="hidden" 
           onChange={handleFileChange}
-          accept="image/*,video/*"
+          accept="image/*,video/*,application/pdf"
         />
+      </div>
+
+      {/* Connection status indicator */}
+      <div className="mt-2 px-1 flex justify-center">
+        <div className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
+          recipientConnection 
+            ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' 
+            : 'text-zinc-500 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${recipientConnection ? 'bg-green-500' : 'bg-zinc-400'}`}></span>
+          <span className="text-[10px] uppercase tracking-wider font-medium">
+            {recipientConnection ? 'P2P Connected' : 'Server Connection'}
+          </span>
+        </div>
       </div>
     </div>
   );

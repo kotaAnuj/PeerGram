@@ -27,6 +27,7 @@ export default function ChatMessages({ recipientId }: ChatMessagesProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newP2PMessages, setNewP2PMessages] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch messages from API
   const { data, isLoading, error, refetch } = useQuery({
@@ -105,7 +106,7 @@ export default function ChatMessages({ recipientId }: ChatMessagesProps) {
 
   if (isLoading) {
     return (
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 flex items-center justify-center">
+      <div className="flex-1 overflow-y-auto flex items-center justify-center bg-zinc-900/5 dark:bg-zinc-50/5">
         <div className="animate-pulse flex space-x-2 justify-center">
           <div className="h-2 w-2 bg-primary rounded-full"></div>
           <div className="h-2 w-2 bg-primary rounded-full"></div>
@@ -117,8 +118,8 @@ export default function ChatMessages({ recipientId }: ChatMessagesProps) {
 
   if (error) {
     return (
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 flex items-center justify-center text-danger">
-        <div>Error loading messages. Please try again.</div>
+      <div className="flex-1 overflow-y-auto flex items-center justify-center bg-zinc-900/5 dark:bg-zinc-50/5">
+        <div className="text-red-500">Error loading messages. Please try again.</div>
       </div>
     );
   }
@@ -153,24 +154,56 @@ export default function ChatMessages({ recipientId }: ChatMessagesProps) {
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 
+  // Group messages by date
+  const groupedMessages: { [key: string]: Message[] } = {};
+  allMessages.forEach((message) => {
+    const date = new Date(message.createdAt).toLocaleDateString();
+    if (!groupedMessages[date]) {
+      groupedMessages[date] = [];
+    }
+    groupedMessages[date].push(message);
+  });
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4" id="chatMessages">
+    <div 
+      ref={chatContainerRef}
+      className="flex-1 overflow-y-auto bg-zinc-900/5 dark:bg-zinc-50/5" 
+      id="chatMessages"
+    >
       {allMessages.length === 0 ? (
         <div className="h-full flex flex-col items-center justify-center text-gray-500">
-          <i className="far fa-comment-dots text-4xl mb-3"></i>
+          <svg className="w-12 h-12 mb-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />
+          </svg>
           <p className="text-sm">No messages yet. Say hello!</p>
         </div>
       ) : (
-        allMessages.map((message) => (
-          <MessageItem
-            key={message.id}
-            message={message}
-            isSender={message.senderId === user?.id}
-            recipientId={recipientId}
-          />
-        ))
+        <div className="px-4 py-5 space-y-6">
+          {Object.entries(groupedMessages).map(([date, messagesForDate]) => (
+            <div key={date} className="space-y-3">
+              <div className="flex justify-center">
+                <div className="bg-zinc-100 dark:bg-zinc-800 text-xs px-3 py-1 rounded-full">
+                  {new Date(date).toLocaleDateString(undefined, { 
+                    weekday: 'long', 
+                    month: 'short', 
+                    day: 'numeric'
+                  })}
+                </div>
+              </div>
+
+              {messagesForDate.map((message) => (
+                <MessageItem
+                  key={message.id}
+                  message={message}
+                  isSender={message.senderId === user?.id}
+                  recipientId={recipientId}
+                />
+              ))}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       )}
-      <div ref={messagesEndRef} />
     </div>
   );
 }
