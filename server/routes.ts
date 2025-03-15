@@ -19,11 +19,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     cors: {
       origin: "*",
       methods: ["GET", "POST"]
-    }
+    },
+    pingTimeout: 60000,  // 1 minute
+    pingInterval: 25000, // 25 seconds
+    connectTimeout: 30000, // 30 seconds
+    maxHttpBufferSize: 1e8, // 100 MB
+    transports: ['websocket', 'polling']
   });
   
   // Set up WebRTC signaling
   setupWebRTCSignaling(io);
+  
+  // P2P helper endpoints
+  app.get('/api/p2p/active-peers', (_req: Request, res: Response) => {
+    // Get active peers from the socket server
+    const activePeers = Array.from(io.of("/").sockets).map(([id, socket]) => {
+      const { peerId, userId } = socket.data;
+      return { socketId: id, peerId, userId };
+    });
+    
+    res.status(200).json({ 
+      count: activePeers.length,
+      peers: activePeers,
+      timestamp: new Date()
+    });
+  });
+  
+  app.post('/api/p2p/heartbeat', (req: Request, res: Response) => {
+    const { peerId, userId } = req.body;
+    
+    if (!peerId) {
+      return res.status(400).json({ error: 'Missing peerId' });
+    }
+    
+    // You could update any database records here to mark this peer as active
+    res.status(200).json({ 
+      status: 'ok',
+      timestamp: new Date()
+    });
+  });
 
   // User routes
   app.post('/api/auth/register', async (req: Request, res: Response) => {

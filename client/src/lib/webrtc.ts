@@ -41,18 +41,51 @@ class WebRTCManager {
   public init(userId: number): Promise<string> {
     return new Promise((resolve, reject) => {
       try {
-        // Create socket connection for signaling
-        this.socket = io();
+        // Create socket connection for signaling with reconnection
+        this.socket = io({
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          timeout: 20000
+        });
         this.userId = userId;
 
-        // Create Peer connection
+        // Create Peer connection with improved options
         this.peer = new Peer({
           debug: 2,
+          host: window.location.hostname,
+          port: window.location.port ? parseInt(window.location.port) : (window.location.protocol === 'https:' ? 443 : 80),
+          path: '/peerjs',
+          secure: window.location.protocol === 'https:',
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:global.stun.twilio.com:3478' }
-            ]
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' },
+              {
+                urls: 'turn:global.turn.twilio.com:3478?transport=udp',
+                username: 'peergram',
+                credential: 'peergram2025'
+              }
+            ],
+            sdpSemantics: 'unified-plan',
+            iceCandidatePoolSize: 10
+          },
+          pingInterval: 5000,  // Check connection every 5 seconds
+        });
+
+        // Handle socket disconnection and reconnection
+        this.socket.on('disconnect', () => {
+          console.log('Socket disconnected, attempting to reconnect...');
+        });
+
+        this.socket.on('reconnect', (attemptNumber) => {
+          console.log(`Socket reconnected after ${attemptNumber} attempts`);
+          if (this.peerId && this.userId) {
+            // Re-register with signaling server
+            this.socket?.emit('register-peer', { peerId: this.peerId, userId: this.userId });
           }
         });
 
@@ -71,7 +104,30 @@ class WebRTCManager {
         
         this.peer.on('error', (err) => {
           console.error('Peer error:', err);
-          reject(err);
+          
+          // Only reject on initialization errors
+          if (!this.peerId) {
+            reject(err);
+          } else {
+            // For other errors, attempt to reconnect
+            setTimeout(() => {
+              console.log('Attempting to reconnect peer after error...');
+              if (this.peer) {
+                this.peer.reconnect();
+              }
+            }, 2000);
+          }
+        });
+        
+        this.peer.on('disconnected', () => {
+          console.log('Peer disconnected from server, attempting to reconnect...');
+          
+          // Attempt to reconnect
+          setTimeout(() => {
+            if (this.peer) {
+              this.peer.reconnect();
+            }
+          }, 1000);
         });
         
         this.peer.on('connection', (conn) => {
@@ -82,9 +138,13 @@ class WebRTCManager {
         if (this.socket) {
           this.socket.on('active-peers', (peers) => {
             console.log('Active peers:', peers);
-            // Connect to active peers
+            // Connect to active peers with rate limiting to prevent flooding
+            let delay = 0;
             peers.forEach((peer: {peerId: string, userId?: number}) => {
-              this.connectToPeer(peer.peerId, peer.userId);
+              setTimeout(() => {
+                this.connectToPeer(peer.peerId, peer.userId);
+              }, delay);
+              delay += 100; // Stagger connections by 100ms
             });
           });
           
@@ -104,25 +164,74 @@ class WebRTCManager {
               // Handle incoming connections via signaling
             }
           });
+          
+          // Setup heartbeat to keep socket alive
+          setInterval(() => {
+            if (this.socket?.connected && this.peerId) {
+              this.socket.emit('heartbeat', { peerId: this.peerId, userId });
+            }
+          }, 30000); // 30 second heartbeat
         }
+        
+        // Setup automatic reconnection for lost peers
+        setInterval(() => {
+          this.checkAndReconnectPeers();
+        }, 60000); // Check every minute
+        
       } catch (err) {
         reject(err);
       }
     });
   }
+  
+  // Helper method to reconnect to lost peers
+  private checkAndReconnectPeers(): void {
+    if (!this.socket || !this.socket.connected) return;
+    
+    // Request active peers list again to reconnect to anyone we've lost
+    this.socket.emit('get-active-peers');
+  }
 
-  // Connect to a peer
-  public connectToPeer(peerId: string, userId?: number): void {
+  // Connect to a peer with retry logic
+  public connectToPeer(peerId: string, userId?: number, retryCount = 0): void {
     if (!this.peer || this.connections.has(peerId) || peerId === this.peerId) return;
     
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000; // 2 seconds between retries
+    
     try {
-      console.log(`Connecting to peer: ${peerId}`);
+      console.log(`Connecting to peer: ${peerId}${retryCount > 0 ? ` (retry #${retryCount})` : ''}`);
+      
+      // Use more reliable connection settings
       const conn = this.peer.connect(peerId, {
         reliable: true,
-        serialization: 'json'
+        serialization: 'json',
+        metadata: {
+          userId: this.userId,
+          initiatorId: this.peerId
+        }
       });
       
+      // Set a connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (!this.connections.has(peerId)) {
+          console.log(`Connection to peer ${peerId} timed out`);
+          conn.close();
+          
+          // Retry if we haven't reached max retries
+          if (retryCount < MAX_RETRIES) {
+            console.log(`Retrying connection to peer ${peerId}...`);
+            setTimeout(() => {
+              this.connectToPeer(peerId, userId, retryCount + 1);
+            }, RETRY_DELAY);
+          }
+        }
+      }, 10000); // 10 second timeout
+      
       conn.on('open', () => {
+        // Clear timeout since connection succeeded
+        clearTimeout(connectionTimeout);
+        
         // Create peer connection entry
         const peerConn: PeerConnection = {
           peerId,
@@ -143,23 +252,65 @@ class WebRTCManager {
         // Notify connection handlers
         this.connectionHandlers.forEach(handler => handler(peerConn));
         
+        // Send initial handshake data
+        conn.send({
+          type: 'HANDSHAKE',
+          peerId: this.peerId,
+          userId: this.userId,
+          timestamp: Date.now()
+        });
+        
         console.log(`Connected to peer: ${peerId}`);
       });
       
       conn.on('data', (data) => {
+        // Handle handshake data to get user ID if we don't have it
+        if (data && typeof data === 'object' && 'type' in data && data.type === 'HANDSHAKE' && !userId) {
+          const peerConn = this.connections.get(peerId);
+          if (peerConn && 'userId' in data && typeof data.userId === 'number') {
+            peerConn.userId = data.userId;
+          }
+        }
+        
         this.handleIncomingData(peerId, data);
       });
       
       conn.on('close', () => {
+        clearTimeout(connectionTimeout);
         this.handlePeerDisconnection(peerId);
+        
+        // Try to reconnect if the connection closes unexpectedly
+        if (this.connections.has(peerId)) {
+          setTimeout(() => {
+            console.log(`Attempting to reconnect to peer ${peerId} after disconnection...`);
+            this.connectToPeer(peerId, userId, 0);
+          }, RETRY_DELAY);
+        }
       });
       
       conn.on('error', (err) => {
+        clearTimeout(connectionTimeout);
         console.error(`Connection error with peer ${peerId}:`, err);
         this.handlePeerDisconnection(peerId);
+        
+        // Retry if we haven't reached max retries
+        if (retryCount < MAX_RETRIES) {
+          setTimeout(() => {
+            console.log(`Retrying connection to peer ${peerId} after error...`);
+            this.connectToPeer(peerId, userId, retryCount + 1);
+          }, RETRY_DELAY);
+        }
       });
     } catch (err) {
       console.error(`Failed to connect to peer ${peerId}:`, err);
+      
+      // Retry if we haven't reached max retries
+      if (retryCount < MAX_RETRIES) {
+        setTimeout(() => {
+          console.log(`Retrying connection to peer ${peerId} after failure...`);
+          this.connectToPeer(peerId, userId, retryCount + 1);
+        }, RETRY_DELAY);
+      }
     }
   }
 
@@ -271,30 +422,20 @@ class WebRTCManager {
       peerConn.connection.send({ type: 'PING', timestamp: pingTime });
     }, 5000); // Ping every 5 seconds
     
-    // Listen for ping response
-    const originalDataHandler = peerConn.connection.dataChannel?.onmessage;
-    if (peerConn.connection.dataChannel) {
-      peerConn.connection.dataChannel.onmessage = (event) => {
-        // Call the original handler
-        if (originalDataHandler) {
-          originalDataHandler(event);
+    // Instead of manipulating the dataChannel directly, we'll use the connection's data event
+    // which is safer and doesn't have the 'this' context issue
+    peerConn.connection.on('data', (data: any) => {
+      // Process ping/pong messages
+      if (typeof data === 'object' && 'type' in data) {
+        if (data.type === 'PING' && 'timestamp' in data) {
+          // Send pong response
+          peerConn.connection.send({ type: 'PONG', timestamp: data.timestamp });
+        } else if (data.type === 'PONG' && 'timestamp' in data) {
+          const rtt = Date.now() - data.timestamp;
+          this.updateConnectionStrength(peerConn, rtt);
         }
-        
-        // Process ping response
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'PING') {
-            // Send pong response
-            peerConn.connection.send({ type: 'PONG', timestamp: data.timestamp });
-          } else if (data.type === 'PONG') {
-            const rtt = Date.now() - data.timestamp;
-            this.updateConnectionStrength(peerConn, rtt);
-          }
-        } catch (e) {
-          // Not a JSON message or not a ping/pong, ignore
-        }
-      };
-    }
+      }
+    });
   }
 
   // Update connection strength based on RTT
