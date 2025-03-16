@@ -1,18 +1,14 @@
+
 [build]
-  command = "npm run build"
-  publish = "dist"
-  functions = "netlify/functions"
+  publish = "client/dist"  # Adjust this path as necessary for your build output
+  command = "npm run build" # Command to build the project
 
 [dev]
-  command = "npm run dev"
-  port = 5000
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+  command = "npm run dev"    # Command to start the development server
+  port = 3000                 # Port for local development
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true
