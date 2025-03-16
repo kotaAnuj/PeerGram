@@ -1,5 +1,5 @@
 
-[build]"
+[build]
   publish = "client/index.html"# Adjust this path as necessary for your build output
   command = "npm run build" # Command to build the project
 
